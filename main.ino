@@ -22,26 +22,27 @@ void checkTemperatureLevel();
 
 /* Leds */
 const int ledPinRed = 2;
-const int ledPinYellow = 3;
-const int ledPinGreen = 4;
+const int ledPinGreen = 3;
 
 /* Analog sensors */
 const int analogMoisturePin = 0;
 const int analogWaterLevelPin = 2;
 
 /* LCD Display */
-const int rs = 13;
-const int en = 12;
-const int d7 = 11;
-const int d6 = 10;
-const int d5 = 9;
-const int d4 = 8;
+const int rs = 12;
+const int en = 13;
+const int d7 = 8;
+const int d6 = 9;
+const int d5 = 10;
+const int d4 = 11;
 
 
 /* Components */
-const int waterPompPin = 5;
-const int fanPin = 6;
-const int buzzerPin = 7;
+const int ena1 = 7;
+const int ena2 = 6;
+
+const int enb1 = 5;
+const int enb2 = 4;
 
 /* ========== */
 SimpleDHT11 dht11;
@@ -56,6 +57,7 @@ int resultMoistureData;
 int resultTemperatureData;
 boolean waterLevelLow = false;
 boolean waterPomp = false;
+boolean startFan = false;
 
 /* Action Timer */
 TimedAction checkWaterLevelAction = TimedAction(1000,checkWaterLevel);
@@ -65,11 +67,11 @@ TimedAction checkTemperatureLevelAction = TimedAction(5000,checkTemperatureLevel
 void setup() {
   Serial.begin(9600);
   pinMode(ledPinRed, OUTPUT);
-  pinMode(ledPinYellow, OUTPUT);
   pinMode(ledPinGreen, OUTPUT);
-  pinMode(waterPompPin, OUTPUT);
-  pinMode(fanPin, OUTPUT);
-  pinMode(buzzerPin, OUTPUT);
+  pinMode(ena1, OUTPUT);
+  pinMode(ena2, OUTPUT);
+  pinMode(enb1, OUTPUT);
+  pinMode(enb2, OUTPUT);
   Serial.println("Initialization....");
   lcd.begin(16, 2);
   lcd.print("Umiditate:");
@@ -85,35 +87,45 @@ void loop() {
   lcd.print(resultMoistureData);
   lcd.setCursor(12,1);
   lcd.print(temperatureDataRead);
+
+  if(startFan){
+    digitalWrite(ena1,LOW);
+    digitalWrite(ena2,HIGH);
+  }else{
+    digitalWrite(ena1,LOW);
+    digitalWrite(ena2,LOW);
+  }
+
+  if(waterPomp){
+    digitalWrite(enb1,HIGH);
+    digitalWrite(enb2,LOW);
+  }else{
+    digitalWrite(enb1,LOW);
+    digitalWrite(enb2,LOW);
+  }
+
   delay(100);
 }
 
 void checkWaterLevel() {
   waterLevelDataRead = analogRead(analogWaterLevelPin);
   if(waterLevelDataRead < 480 && waterPomp == true){
-    digitalWrite(waterPompPin, LOW);
     waterPomp = false;
   }
   if(waterLevelDataRead < 480){
     digitalWrite(ledPinRed,HIGH);
-    digitalWrite(ledPinYellow,LOW);
     digitalWrite(ledPinGreen,LOW);
     Serial.println("Atentie! nivel de apa scazut.");
-    tone(buzzerPin, 1000);
     waterLevelLow = true;
   } else if (waterLevelDataRead < 600) {
     digitalWrite(ledPinRed,LOW);
-    digitalWrite(ledPinYellow,HIGH);
-    digitalWrite(ledPinGreen,LOW);
+    digitalWrite(ledPinGreen,HIGH);
     Serial.println("Nivel de apa mediu.");
-    noTone(buzzerPin);
     waterLevelLow = false;
   } else if (waterLevelDataRead > 600 ) {
     digitalWrite(ledPinRed,LOW);
-    digitalWrite(ledPinYellow,LOW);
     digitalWrite(ledPinGreen,HIGH);
     Serial.println("Nivel de apa ridicat.");
-    noTone(buzzerPin);
     waterLevelLow = false;
   }
   
@@ -123,10 +135,8 @@ void checkMoistureLevel() {
   moistureDataRead = analogRead(analogMoisturePin);
   resultMoistureData = map(moistureDataRead, 1024, 10, 0, 100);
   if(resultMoistureData < 20 && waterLevelLow == false){
-    digitalWrite(waterPompPin,HIGH);
     waterPomp = true;
   } else {
-    digitalWrite(waterPompPin,LOW);
     waterPomp = false;
   }
   Serial.print("Umiditate sol: ");
@@ -143,9 +153,9 @@ void checkTemperatureLevel() {
     return;
   }
   if((int)temperatureDataRead > 23){
-    digitalWrite(fanPin,HIGH);
+    startFan = true;
   }else{
-    digitalWrite(fanPin,LOW);
+    startFan = false;
   }
   Serial.print("Temperatura: ");
   Serial.print((int)temperatureDataRead);
@@ -155,4 +165,3 @@ void checkTemperatureLevel() {
   Serial.println("%");
   delay(1500);
 }
-
